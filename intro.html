@@ -1,6 +1,5 @@
 <!DOCTYPE html>
 <html lang="en">
-
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
@@ -11,14 +10,9 @@
   <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
 
   <style>
-    * {
-      margin: 0;
-      padding: 0;
-      box-sizing: border-box;
-    }
+    * { margin: 0; padding: 0; box-sizing: border-box; }
 
-    html,
-    body {
+    html, body {
       width: 100%;
       height: 100%;
       overflow: hidden;
@@ -40,25 +34,6 @@
       z-index: 0;
     }
 
-    .header {
-      position: fixed;
-      top: 0;
-      left: 0;
-      width: 100%;
-      z-index: 3;
-      display: flex;
-      justify-content: center;
-      padding: clamp(1rem, 2vh, 1.5rem) 2rem;
-      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent);
-      backdrop-filter: blur(10px);
-    }
-
-    .logo {
-      height: clamp(130px, 18vh, 220px);
-      margin-bottom: 2.25rem;
-      filter: drop-shadow(0 0 55px rgba(31, 111, 74, 0.6));
-    }
-
     .content {
       position: fixed;
       top: 0;
@@ -69,10 +44,14 @@
       display: flex;
       align-items: center;
       justify-content: center;
-      padding: clamp(80px, 12vh, 120px) 1.5rem clamp(60px, 8vh, 80px);
+      padding: 0 1.5rem;
     }
 
     .video-container {
+      display: flex;
+      justify-content: center;
+      transform: translateY(-2vh);
+
       width: 100%;
       max-width: 900px;
       background: transparent;
@@ -85,6 +64,12 @@
       padding: clamp(1.5rem, 3vw, 2.5rem);
       text-align: center;
       line-height: 1.7;
+    }
+
+    .logo {
+      height: clamp(130px, 18vh, 220px);
+      margin-bottom: 2.25rem;
+      filter: drop-shadow(0 0 55px rgba(31, 111, 74, 0.6));
     }
 
     .icot-text h2 {
@@ -151,7 +136,7 @@
         </p>
 
         <p class="icot-highlight">
-          Thinking is not just a skill it is the foundation of progress.
+          Thinking is not just a skill — it is the foundation of progress.
         </p>
       </div>
     </div>
@@ -166,50 +151,80 @@
 
     function initSmoke() {
       clock = new THREE.Clock();
-      renderer = new THREE.WebGLRenderer({
-        alpha: true,
-        antialias: true
-      });
+
+      renderer = new THREE.WebGLRenderer({ alpha: true, antialias: true });
       renderer.setSize(window.innerWidth, window.innerHeight);
       document.getElementById('smokeCanvas').appendChild(renderer.domElement);
+
       scene = new THREE.Scene();
-      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 10000);
+
+      camera = new THREE.PerspectiveCamera(
+        75,
+        window.innerWidth / window.innerHeight,
+        1,
+        10000
+      );
       camera.position.z = 1000;
       scene.add(camera);
+
       const light = new THREE.DirectionalLight(0xffffff, 0.5);
       light.position.set(-1, 0, 1);
       scene.add(light);
-      const smokeTexture = new THREE.TextureLoader().load('https://s3-us-west-2.amazonaws.com/s.cdpn.io/95637/Smoke-Element.png');
+
+      const smokeTexture = new THREE.TextureLoader().load(
+        'https://s3-us-west-2.amazonaws.com/s.cdpn.io/95637/Smoke-Element.png'
+      );
+
       const smokeMaterial = new THREE.MeshLambertMaterial({
         map: smokeTexture,
         transparent: true,
-        opacity: 0.55,
-        color: 0x00dddd
+        opacity: 0.6,
+        color: new THREE.Color(0x1f6f4a)
       });
-      const smokeGeo = new THREE.PlaneGeometry(300, 300);
+
+      // Slightly larger planes help the smoke read more clearly.
+      const smokeGeo = new THREE.PlaneGeometry(360, 360);
+
       for (let i = 0; i < 80; i++) {
-        const particle = new THREE.Mesh(smokeGeo, smokeMaterial);
-        particle.position.set(Math.random() * 700 - 350, Math.random() * 700 - 350, Math.random() * 1000 - 100);
+        const particle = new THREE.Mesh(smokeGeo, smokeMaterial.clone());
+        particle.position.set(
+          Math.random() * 700 - 350,
+          Math.random() * 700 - 350,
+          Math.random() * 1000 - 100
+        );
         particle.rotation.z = Math.random() * 360;
         scene.add(particle);
         smokeParticles.push(particle);
       }
+
       animate();
     }
 
     function animate() {
       requestAnimationFrame(animate);
+
       const delta = clock.getDelta();
-      smokeParticles.forEach(p => p.rotation.z += delta * 0.12);
+      // Static green smoke (academic tone)
+      const r = 0.12;
+      const g = 0.44;
+      const b = 0.29;
+
+      for (const p of smokeParticles) {
+        p.rotation.z += delta * 0.12;
+        p.material.color.setRGB(r, g, b);
+      }
+
       renderer.render(scene, camera);
     }
+
     window.addEventListener('resize', () => {
+      if (!camera || !renderer) return;
       camera.aspect = window.innerWidth / window.innerHeight;
       camera.updateProjectionMatrix();
       renderer.setSize(window.innerWidth, window.innerHeight);
     });
+
     window.addEventListener('load', initSmoke);
   </script>
 </body>
-
 </html>
