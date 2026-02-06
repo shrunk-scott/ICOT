@@ -1,0 +1,364 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>ICOT Launching Soon</title>
+
+  <!-- Google Fonts - Montserrat -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Montserrat:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #0a0a0a;
+      color: #ffffff;
+      font-family: 'Montserrat', system-ui, -apple-system, sans-serif;
+      overflow: hidden;
+      touch-action: none;
+    }
+
+    #particleCanvas {
+      position: fixed;
+      top: 0; left: 0;
+      width: 100%; height: 100%;
+      z-index: 0;
+      touch-action: none;
+    }
+
+    .content {
+      position: relative;
+      z-index: 1;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      padding: 2rem;
+      text-align: center;
+      pointer-events: none;
+    }
+
+    .content > * { pointer-events: auto; }
+
+    .logo {
+      width: clamp(200px, 60vw, 400px);
+      height: auto;
+      margin-bottom: 2rem;
+    }
+
+    h1 {
+      font-size: clamp(2rem, 8vw, 4rem);
+      font-weight: 700;
+      margin-bottom: 1rem;
+      background: linear-gradient(135deg, #47ADFF, #8b5cf6);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      background-clip: text;
+      letter-spacing: -0.02em;
+      display: none;
+    }
+
+    p {
+      font-size: clamp(1rem, 4vw, 1.25rem);
+      color: rgba(255, 255, 255, 0.7);
+      max-width: 600px;
+      line-height: 1.6;
+      font-weight: 400;
+    }
+
+    /* Footer */
+    footer {
+      position: fixed;
+      left: 0;
+      bottom: 14px;
+      width: 100%;
+      z-index: 2;
+      text-align: center;
+      font-size: 0.75rem;
+      letter-spacing: 0.02em;
+      color: rgba(255, 255, 255, 0.55);
+      padding: 0 1rem;
+      pointer-events: none;
+      user-select: none;
+    }
+
+    @media (max-width: 480px) {
+      footer { font-size: 0.7rem; bottom: 10px; }
+    }
+  </style>
+</head>
+<body>
+  <canvas id="particleCanvas"></canvas>
+
+  <div class="content">
+    <img src="https://i.imgur.com/LFumjAl.png" alt="ICOT Logo" class="logo" id="logo"
+      onerror="this.style.display='none'; document.querySelector('h1').style.display='block';">
+    <h1>ICOT</h1>
+    <p>our website is launching soon</p>
+  </div>
+
+  <footer>©2026 International Conference of Thinking. All Rights Reserved</footer>
+
+  <script>
+    const canvas = document.getElementById('particleCanvas');
+    const ctx = canvas.getContext('2d');
+    const logo = document.getElementById('logo');
+
+    let width = canvas.width = window.innerWidth;
+    let height = canvas.height = window.innerHeight;
+
+    function getLogoCenterPosition() {
+      const rect = logo.getBoundingClientRect();
+      return { x: rect.left + rect.width / 2, y: rect.top + rect.height / 2 };
+    }
+
+    let logoPos = getLogoCenterPosition();
+    let centerX = logoPos.x;
+    let centerY = logoPos.y;
+    let targetX = logoPos.x;
+    let targetY = logoPos.y;
+    let velocityX = 0;
+    let velocityY = 0;
+
+    // Seeded random
+    class Random {
+      constructor(seed) { this.seed = seed; }
+      next() {
+        this.seed = (this.seed * 9301 + 49297) % 233280;
+        return this.seed / 233280;
+      }
+    }
+
+    const config = {
+      particleCount: 2000,
+      particleSize: 2,
+      ringRadiusMin: 100,
+      ringRadiusMax: 200,
+      minAlpha: 0.1,
+      maxAlpha: 1.0,
+      seed: 200,
+
+      // NEW: color cycle settings
+      // Cycle through blue (~205°) -> green (~140°) -> purple (~265°) -> back
+      hueStops: [205, 140, 265, 205],
+      hueCycleMs: 9000
+    };
+
+    const random = new Random(config.seed);
+
+    const RIPPLE_DURATION = 8000;
+    const PULSE_DURATION = 6000;
+    let startTime = Date.now();
+
+    function lerp(a, b, t) { return a + (b - a) * t; }
+    function clamp01(x) { return Math.max(0, Math.min(1, x)); }
+
+    // Smooth step for nicer transitions between stops
+    function smoothstep(t) {
+      t = clamp01(t);
+      return t * t * (3 - 2 * t);
+    }
+
+    // Piecewise hue interpolation across stops
+    function getCycledHue(elapsedMs) {
+      const t = (elapsedMs % config.hueCycleMs) / config.hueCycleMs; // 0..1
+      const segments = config.hueStops.length - 1; // 3
+      const scaled = t * segments;
+      const i = Math.min(segments - 1, Math.floor(scaled));
+      const localT = smoothstep(scaled - i);
+      return lerp(config.hueStops[i], config.hueStops[i + 1], localT);
+    }
+
+    class Particle {
+      constructor() {
+        const angle = random.next() * Math.PI * 2;
+
+        const u1 = random.next();
+        const u2 = random.next();
+        const gaussian = Math.sqrt(-2.0 * Math.log(u1)) * Math.cos(2.0 * Math.PI * u2);
+
+        const normalizedDistance = Math.abs(gaussian) / 3;
+        this.baseDistance = config.ringRadiusMin + normalizedDistance * (config.ringRadiusMax - config.ringRadiusMin);
+
+        this.angle = angle + (random.next() - 0.5) * 0.5;
+        this.distance = this.baseDistance;
+
+        this.offsetX = (random.next() - 0.5) * 40;
+        this.offsetY = (random.next() - 0.5) * 40;
+
+        this.alpha = config.minAlpha + (random.next() * (config.maxAlpha - config.minAlpha));
+
+        this.phase = random.next() * Math.PI * 2;
+
+        // Individual particle physics for fluid deformation
+        this.velocityX = 0;
+        this.velocityY = 0;
+        this.x = 0;
+        this.y = 0;
+
+        this.lagFactor = 0.85 + (normalizedDistance * 0.15);
+        this.springStrength = 0.003 + random.next() * 0.002;
+        this.damping = 0.88 + random.next() * 0.08;
+
+        // NEW: per-particle hue variation so it feels richer
+        this.hueOffset = (random.next() - 0.5) * 18;  // +/- 9 degrees
+      }
+
+      update(cx, cy, globalVelocityX, globalVelocityY, rippleProgress, pulseProgress) {
+        const pulseAmount = Math.sin(pulseProgress * Math.PI * 2 + this.phase) * 15;
+        const currentDistance = this.distance + pulseAmount;
+
+        const wave = Math.sin(rippleProgress * Math.PI * 2 + this.phase) * 8;
+
+        const targetX = cx + Math.cos(this.angle) * (currentDistance + wave) + this.offsetX;
+        const targetY = cy + Math.sin(this.angle) * (currentDistance + wave) + this.offsetY;
+
+        const velocityMagnitude = Math.sqrt(globalVelocityX * globalVelocityX + globalVelocityY * globalVelocityY);
+        const deformAmount = velocityMagnitude * 8 * this.lagFactor;
+
+        const perpX = -globalVelocityY;
+        const perpY = globalVelocityX;
+        const squashAmount = velocityMagnitude * -3;
+
+        const deformedTargetX = targetX + globalVelocityX * deformAmount + perpX * squashAmount;
+        const deformedTargetY = targetY + globalVelocityY * deformAmount + perpY * squashAmount;
+
+        const deltaX = deformedTargetX - this.x;
+        const deltaY = deformedTargetY - this.y;
+
+        this.velocityX += deltaX * this.springStrength;
+        this.velocityY += deltaY * this.springStrength;
+
+        this.velocityX *= this.damping;
+        this.velocityY *= this.damping;
+
+        const turbulence = velocityMagnitude * 0.5;
+        this.velocityX += (Math.random() - 0.5) * turbulence;
+        this.velocityY += (Math.random() - 0.5) * turbulence;
+
+        this.x += this.velocityX;
+        this.y += this.velocityY;
+      }
+
+      draw(baseHue) {
+        if (this.x < -10 || this.x > width + 10 || this.y < -10 || this.y > height + 10) return;
+
+        const hue = baseHue + this.hueOffset;
+        // Using HSLA makes cycling simple and smooth
+        ctx.fillStyle = `hsla(${hue}, 85%, 62%, ${this.alpha})`;
+        ctx.beginPath();
+        ctx.arc(this.x, this.y, config.particleSize, 0, Math.PI * 2);
+        ctx.fill();
+      }
+    }
+
+    let particles = [];
+    function generateParticles() {
+      particles = [];
+      const logoPos = getLogoCenterPosition();
+      for (let i = 0; i < config.particleCount; i++) {
+        const particle = new Particle();
+        particle.x = logoPos.x + Math.cos(particle.angle) * particle.baseDistance + particle.offsetX;
+        particle.y = logoPos.y + Math.sin(particle.angle) * particle.baseDistance + particle.offsetY;
+        particles.push(particle);
+      }
+    }
+
+    generateParticles();
+
+    function animate() {
+      const currentTime = Date.now();
+      const elapsed = currentTime - startTime;
+
+      const rippleProgress = (elapsed % RIPPLE_DURATION) / RIPPLE_DURATION;
+      const pulseProgress = (elapsed % PULSE_DURATION) / PULSE_DURATION;
+
+      // NEW: base hue that cycles through blue/green/purple
+      const baseHue = getCycledHue(elapsed);
+
+      // Global center movement with spring physics
+      const springStrength = 0.002;
+      const damping = 0.92;
+
+      const dx = targetX - centerX;
+      const dy = targetY - centerY;
+
+      velocityX += dx * springStrength;
+      velocityY += dy * springStrength;
+
+      velocityX *= damping;
+      velocityY *= damping;
+
+      centerX += velocityX;
+      centerY += velocityY;
+
+      ctx.clearRect(0, 0, width, height);
+
+      particles.forEach(particle => {
+        particle.update(centerX, centerY, velocityX, velocityY, rippleProgress, pulseProgress);
+        particle.draw(baseHue);
+      });
+
+      requestAnimationFrame(animate);
+    }
+
+    animate();
+
+    function updateLogoPosition() {
+      logoPos = getLogoCenterPosition();
+      if (!isInteracting) {
+        targetX = logoPos.x;
+        targetY = logoPos.y;
+      }
+    }
+
+    window.addEventListener('load', updateLogoPosition);
+    window.addEventListener('resize', () => {
+      width = canvas.width = window.innerWidth;
+      height = canvas.height = window.innerHeight;
+      updateLogoPosition();
+    });
+
+    setTimeout(updateLogoPosition, 100);
+    setTimeout(updateLogoPosition, 500);
+    setTimeout(updateLogoPosition, 1000);
+
+    let isInteracting = false;
+
+    function handleStart(e) {
+      isInteracting = true;
+      handleMove(e);
+    }
+
+    function handleMove(e) {
+      if (!isInteracting) return;
+      e.preventDefault();
+
+      const clientX = e.touches ? e.touches[0].clientX : e.clientX;
+      const clientY = e.touches ? e.touches[0].clientY : e.clientY;
+
+      targetX = clientX;
+      targetY = clientY;
+    }
+
+    function handleEnd() {
+      isInteracting = false;
+      updateLogoPosition();
+    }
+
+    canvas.addEventListener('touchstart', handleStart, { passive: false });
+    canvas.addEventListener('touchmove', handleMove, { passive: false });
+    canvas.addEventListener('touchend', handleEnd);
+    canvas.addEventListener('touchcancel', handleEnd);
+
+    canvas.addEventListener('mousedown', handleStart);
+    canvas.addEventListener('mousemove', handleMove);
+    canvas.addEventListener('mouseup', handleEnd);
+    canvas.addEventListener('mouseleave', handleEnd);
+  </script>
+</body>
+</html>
