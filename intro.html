@@ -1,0 +1,215 @@
+<!DOCTYPE html>
+<html lang="en">
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>ICOT</title>
+
+  <link rel="preconnect" href="https://fonts.googleapis.com" />
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin />
+  <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;500;600;700&display=swap" rel="stylesheet" />
+
+  <style>
+    * {
+      margin: 0;
+      padding: 0;
+      box-sizing: border-box;
+    }
+
+    html,
+    body {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      position: fixed;
+    }
+
+    body {
+      background: #000000;
+      color: #ffffff;
+      font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, system-ui, sans-serif;
+    }
+
+    #smokeCanvas {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 0;
+    }
+
+    .header {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      z-index: 3;
+      display: flex;
+      justify-content: center;
+      padding: clamp(1rem, 2vh, 1.5rem) 2rem;
+      background: linear-gradient(to bottom, rgba(0, 0, 0, 0.6), transparent);
+      backdrop-filter: blur(10px);
+    }
+
+    .logo {
+      height: clamp(130px, 18vh, 220px);
+      margin-bottom: 2.25rem;
+      filter: drop-shadow(0 0 55px rgba(31, 111, 74, 0.6));
+    }
+
+    .content {
+      position: fixed;
+      top: 0;
+      left: 0;
+      width: 100%;
+      height: 100%;
+      z-index: 1;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      padding: clamp(80px, 12vh, 120px) 1.5rem clamp(60px, 8vh, 80px);
+    }
+
+    .video-container {
+      width: 100%;
+      max-width: 900px;
+      background: transparent;
+      border: none;
+      box-shadow: none;
+      backdrop-filter: none;
+    }
+
+    .icot-text {
+      padding: clamp(1.5rem, 3vw, 2.5rem);
+      text-align: center;
+      line-height: 1.7;
+    }
+
+    .icot-text h2 {
+      font-family: 'Inter', 'Helvetica Neue', Helvetica, Arial, sans-serif;
+      font-size: clamp(1.6rem, 3.5vw, 2.4rem);
+      font-weight: 700;
+      margin-bottom: 1.25rem;
+      color: #1f6f4a;
+      letter-spacing: -0.01em;
+    }
+
+    .icot-text p {
+      font-size: clamp(0.95rem, 2vw, 1.05rem);
+      color: rgba(255, 255, 255, 0.82);
+      margin-bottom: 1rem;
+    }
+
+    .icot-highlight {
+      margin-top: 1.75rem;
+      font-weight: 600;
+      letter-spacing: 0.08em;
+      color: #00dddd;
+      text-transform: uppercase;
+    }
+
+    footer {
+      position: fixed;
+      bottom: 0;
+      width: 100%;
+      text-align: center;
+      font-size: 0.7rem;
+      letter-spacing: 0.08em;
+      color: rgba(255, 255, 255, 0.35);
+      padding: 1rem;
+      background: linear-gradient(to top, rgba(0, 0, 0, 0.5), transparent);
+      backdrop-filter: blur(5px);
+    }
+  </style>
+</head>
+
+<body>
+  <div id="smokeCanvas"></div>
+
+  <div class="content">
+    <div class="video-container">
+      <div class="icot-text">
+        <img src="https://i.imgur.com/LFumjAl.png" alt="ICOT" class="logo" />
+
+        <p>
+          The International Conference of Thinking (ICOT) is a global forum dedicated to
+          the exploration, development and advancement of human thinking.
+        </p>
+
+        <p>
+          ICOT brings together educators, researchers, innovators and thought leaders
+          from around the world to examine how thinking shapes learning, creativity,
+          decision-making and problem-solving across disciplines.
+        </p>
+
+        <p>
+          Through dialogue, research and shared practice, ICOT aims to foster deeper,
+          more intentional thinking that empowers individuals and societies to navigate
+          complexity, uncertainty and change.
+        </p>
+
+        <p class="icot-highlight">
+          Thinking is not just a skill it is the foundation of progress.
+        </p>
+      </div>
+    </div>
+  </div>
+
+  <footer>©2026 International Conference of Thinking. All Rights Reserved</footer>
+
+  <script src="https://cdnjs.cloudflare.com/ajax/libs/three.js/r128/three.min.js"></script>
+  <script>
+    let camera, scene, renderer, clock;
+    let smokeParticles = [];
+
+    function initSmoke() {
+      clock = new THREE.Clock();
+      renderer = new THREE.WebGLRenderer({
+        alpha: true,
+        antialias: true
+      });
+      renderer.setSize(window.innerWidth, window.innerHeight);
+      document.getElementById('smokeCanvas').appendChild(renderer.domElement);
+      scene = new THREE.Scene();
+      camera = new THREE.PerspectiveCamera(75, window.innerWidth / window.innerHeight, 1, 10000);
+      camera.position.z = 1000;
+      scene.add(camera);
+      const light = new THREE.DirectionalLight(0xffffff, 0.5);
+      light.position.set(-1, 0, 1);
+      scene.add(light);
+      const smokeTexture = new THREE.TextureLoader().load('https://s3-us-west-2.amazonaws.com/s.cdpn.io/95637/Smoke-Element.png');
+      const smokeMaterial = new THREE.MeshLambertMaterial({
+        map: smokeTexture,
+        transparent: true,
+        opacity: 0.55,
+        color: 0x00dddd
+      });
+      const smokeGeo = new THREE.PlaneGeometry(300, 300);
+      for (let i = 0; i < 80; i++) {
+        const particle = new THREE.Mesh(smokeGeo, smokeMaterial);
+        particle.position.set(Math.random() * 700 - 350, Math.random() * 700 - 350, Math.random() * 1000 - 100);
+        particle.rotation.z = Math.random() * 360;
+        scene.add(particle);
+        smokeParticles.push(particle);
+      }
+      animate();
+    }
+
+    function animate() {
+      requestAnimationFrame(animate);
+      const delta = clock.getDelta();
+      smokeParticles.forEach(p => p.rotation.z += delta * 0.12);
+      renderer.render(scene, camera);
+    }
+    window.addEventListener('resize', () => {
+      camera.aspect = window.innerWidth / window.innerHeight;
+      camera.updateProjectionMatrix();
+      renderer.setSize(window.innerWidth, window.innerHeight);
+    });
+    window.addEventListener('load', initSmoke);
+  </script>
+</body>
+
+</html>
